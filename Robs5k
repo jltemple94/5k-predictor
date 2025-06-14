@@ -1,0 +1,103 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>5K Time Predictor</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    canvas { margin-top: 20px; }
+    input, button { margin-top: 10px; padding: 8px; width: 100%; }
+  </style>
+</head>
+<body>
+  <h1>5K Time Predictor</h1>
+  <p>Select a date to predict your 5K time:</p>
+  <input type="date" id="dateInput">
+  <button onclick="predictTime()">Predict 5K Time</button>
+  <p id="prediction"></p>
+  <canvas id="timeChart"></canvas>  <script>
+    function timeToSeconds(timeStr) {
+      const [min, sec] = timeStr.split(":").map(Number);
+      return min * 60 + sec;
+    }
+
+    function secondsToTime(seconds) {
+      const min = Math.floor(seconds / 60);
+      const sec = Math.round(seconds % 60);
+      return `${min}:${sec.toString().padStart(2, '0')}`;
+    }
+
+    const rawData = [
+      [-210, timeToSeconds("23:00")],       // 7 months before 6/13/2025
+      [-90, timeToSeconds("21:30")],       // 3 months before 6/13/2025
+      [0, timeToSeconds("18:21")]          // 6/13/2025
+    ];
+
+    const days = rawData.map(point => point[0]);
+    const times = rawData.map(point => point[1]);
+
+    const n = days.length;
+    const sumX = days.reduce((a, b) => a + b, 0);
+    const sumY = times.reduce((a, b) => a + b, 0);
+    const sumXY = days.reduce((sum, x, i) => sum + x * times[i], 0);
+    const sumX2 = days.reduce((sum, x) => sum + x * x, 0);
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / n;
+
+    const ctx = document.getElementById('timeChart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: days,
+        datasets: [
+          {
+            label: '5K Time (s)',
+            data: times,
+            borderColor: 'blue',
+            fill: false,
+            tension: 0.1
+          },
+          {
+            label: 'Trend Line',
+            data: days.map(x => slope * x + intercept),
+            borderColor: 'red',
+            borderDash: [5, 5],
+            fill: false,
+            tension: 0.1
+          }
+        ]
+      },
+      options: {
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Days from 6/13/2025'
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: 'Time (s)'
+            }
+          }
+        }
+      }
+    });
+
+    function predictTime() {
+      const dateInput = document.getElementById('dateInput').value;
+      if (!dateInput) return;
+
+      const baseDate = new Date('2025-06-13');
+      const inputDate = new Date(dateInput);
+      const diffTime = inputDate - baseDate;
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+      const predictedSeconds = slope * diffDays + intercept;
+      const predictedTime = secondsToTime(predictedSeconds);
+      document.getElementById('prediction').textContent = `Predicted 5K time for ${dateInput}: ${predictedTime}`;
+    }
+  </script></body>
+</html>
